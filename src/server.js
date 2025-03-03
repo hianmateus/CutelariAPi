@@ -1,59 +1,40 @@
-import app from './app'
+import app from './app';
 import 'dotenv/config';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 
 const client = new MercadoPagoConfig({ accessToken: process.env.ACCESS_TOKEN });
 const preference = new Preference(client);
 
-app.get('/check_payment/:paymentId', async (req, res) => {
-    try {
-        const { paymentId } = req.params;
-        const response = await payment.get({ id: paymentId });
-
-        res.json({ status: response.status });
-    } catch (error) {
-        console.error('❌ Erro ao consultar pagamento:', error);
-        res.status(500).json({ error: 'Erro ao consultar pagamento' });
-    }
-});
-
 app.post('/create_preference', async (req, res) => {
     try {
-        const { items, paymentMethod } = req.body;
+        const { items, paymentMethod, deliveryTax } = req.body;
 
-        // Criar um título consolidado com nome e quantidade dos produtos
         const productSummary = items.map(item => `(x${item.quantity}) ${item.title}`).join(" | ");
 
-        // Calcular o total com desconto (se aplicável)
         let discount = paymentMethod === "pix" ? 0.9 : 0;
         let totalPrice = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-        totalPrice = Number((totalPrice * (1 - discount)).toFixed(2)); // Aplica o desconto
+        totalPrice = Number((totalPrice * (1 - discount)).toFixed(2));
 
-        // Criar um único item consolidado para exibição correta no Mercado Pago
         const consolidatedItem = [{
-            title: productSummary, // Aqui vai o nome de TODOS os produtos
-            quantity: 1, // Mantemos como 1 para evitar múltiplas listagens erradas
-            unit_price: totalPrice, // Total calculado
+            title: productSummary,
+            quantity: 1,
+            unit_price: totalPrice + deliveryTax, // Adiciona o frete ao total
             currency_id: "BRL",
-            description: "Compra contendo: " + productSummary // Detalhes adicionais
+            description: "Compra contendo: " + productSummary
         }];
 
         const response = await preference.create({
             body: {
-                items: consolidatedItem, // Agora enviamos apenas 1 item consolidado
+                items: consolidatedItem,
                 back_urls: {
-                    success: "http://localhost:5173/",
+                    success: "http://localhost:5173/?status=success",
                     failure: "http://localhost:5173/falha",
                     pending: "http://localhost:5173/pendente"
                 },
-                auto_return: "approved",
-                payment_methods: {
-                    excluded_payment_types: paymentMethod === "pix" ? [{ id: "credit_card" }, { id: "debit_card" }] : []
-                }
+                auto_return: "approved"
             }
         });
 
-        console.log('Preference created:', response);
         res.json({ id: response.id });
 
     } catch (error) {
@@ -61,6 +42,5 @@ app.post('/create_preference', async (req, res) => {
         res.status(500).json({ error: 'Erro ao criar preferência' });
     }
 });
-
 
 app.listen(3001, () => console.log('Server is running at port 3001...'));
