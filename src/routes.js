@@ -16,6 +16,7 @@ const upload = multer(multerConfig)
 
 routes.post('/users', UserController.store)
 routes.post('/session', SessionController.store)
+routes.patch('/products/update-stock', ProductController.updateStock);
 
 routes.use(authMiddleware)
 

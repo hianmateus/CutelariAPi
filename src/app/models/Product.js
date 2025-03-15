@@ -14,6 +14,7 @@ class Product extends Model {
                 info4: Sequelize.STRING,
                 path: Sequelize.STRING,
                 offer: Sequelize.BOOLEAN,
+                stock: Sequelize.INTEGER,
                 url: {
                     type: Sequelize.VIRTUAL,
                     get() {
